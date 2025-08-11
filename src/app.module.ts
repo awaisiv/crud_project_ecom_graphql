@@ -2,14 +2,16 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { getConfig} from './config/database.config';
-
+import {datasource} from "./config/ormconfig"
+import "reflect-metadata"
+import { OrdersModule } from './Modules/orders/orders.module';
+import { CustomersModule } from './Modules/customers/customers.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot(getConfig()),
+    TypeOrmModule.forRoot(datasource.options),OrdersModule, CustomersModule
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule{}; 
