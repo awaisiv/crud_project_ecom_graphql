@@ -11,10 +11,12 @@ import { LoginDto } from '../dto/login.dto';
 import { error } from 'console';
 import { RegisterDto } from '../dto/register.dto';
 import { Userdetails } from 'src/Modules/user/entities/user.entity';
+import { RolePermission } from '../entities/roles-permission.entity';
 @Injectable()
 export class AuthService {
   constructor(@InjectRepository(Auth_credentials) private readonly login_credentials: Repository<Auth_credentials>,
     @InjectRepository(RefreshTokenEntity) private readonly refresh_token_storage: Repository<RefreshTokenEntity>,
+    @InjectRepository(RolePermission) private readonly role_permission: Repository<RolePermission>,
     @InjectRepository(Userdetails) private readonly userdetails: Repository<Userdetails>,
     private readonly jwt_service: JwtService) { }
   create(createAuthDto: CreateAuthDto) {
@@ -129,11 +131,36 @@ export class AuthService {
       })
     }
 
-
-
     return { access_token: newAccessToken, refresh_token: newRefreshToken }
-
   }
+
+  async getUserPermissions(userId: number): Promise<string[]> {
+    const user = await this.login_credentials.findOne({
+      where: { user_id: userId },
+      relations: ['roles'], // Assuming User has ManyToMany with Role
+    });
+
+    if (!user || !user.role_id) return [];
+
+    // Then get all role-permission mappings for these roles
+    const rolePermissions = await this.role_permission.find({
+      where: {
+        role: { role_id: In(user.roles.map(role => role.role_id)) }
+      },
+      relations: ['permission'],
+    });
+
+    // Extract unique permission names
+    const permissions = new Set<string>();
+    rolePermissions.forEach(rp => {
+      if (rp.allowed) {
+        permissions.add(rp.permission.name);
+      }
+    });
+
+    return Array.from(permissions);
+  }
+
   findAll() {
     return `This action returns all auth`;
   }

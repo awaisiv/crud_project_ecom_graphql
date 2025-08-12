@@ -10,6 +10,7 @@ import { AuthModule } from './Modules/auth/auth.module';
 import { JwtAuthGuard } from './common/guards/authguard/authguard.guard';
 import { RoleGuard } from './common/guards/roleguard/roleguard.guard';
 import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
@@ -18,10 +19,11 @@ import { JwtModule } from '@nestjs/jwt';
       secret: process.env.JWT_ACCESS_SECRET,
       signOptions: { expiresIn: '15m' },
     }),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
   ],
 
   controllers: [AppController],
   providers: [AppService, JwtAuthGuard, RoleGuard],
-  exports: [JwtModule],
+  exports: [JwtModule, PassportModule],
 })
 export class AppModule { }; 
