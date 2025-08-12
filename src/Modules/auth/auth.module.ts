@@ -6,14 +6,14 @@ import { Auth_credentials } from './entities/user_details.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { RefreshTokenEntity } from './entities/refresh_token.entity';
 import { Userdetails } from '../user/entities/user.entity';
+import { jwttoken } from './strategies/jwt-refresh.strategy';
+import { PassportModule } from '@nestjs/passport';
 @Module({
   imports: [TypeOrmModule.forFeature([Auth_credentials, RefreshTokenEntity, Userdetails]),
-  JwtModule.register({
-    secret: process.env.JWT_ACCESS_SECRET,
-    signOptions: { expiresIn: '15m' },
-  }),
+    JwtModule
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, jwttoken],
+  exports: [jwttoken, TypeOrmModule]
 })
 export class AuthModule { }

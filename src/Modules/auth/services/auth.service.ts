@@ -43,8 +43,9 @@ export class AuthService {
       secret: process.env.JWT_REFRESH_SECRET,
       expiresIn: '7d'
     })
-    const data = this.refresh_token_storage.create({ user_id: user.user_id, refresh_token: RefreshToken, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) })
-    await this.refresh_token_storage.save(data);
+
+    await this.refresh_token_storage.update({ user_id: user.user_id }, { refresh_token: RefreshToken, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) })
+
     return { AccessToken, RefreshToken };
   }
 
@@ -57,12 +58,13 @@ export class AuthService {
 
     const hashed_password = await bcrypt.hash(password, 10);
     const newUser = this.login_credentials.create({
-      email,
+      email: emaillower,
       password: hashed_password,
       role_id: otherDetails.role_id
     });
     await this.login_credentials.save(newUser);
     const userDetails = this.userdetails.create({
+      user_id: newUser.user_id,
       name: otherDetails.name,
       gender: otherDetails.gender,            // This should be one of gender_choice enum values like 'MALE'
       date_of_birth: otherDetails.date_of_birth,  // Date type or ISO string
@@ -88,7 +90,48 @@ export class AuthService {
     const data = this.refresh_token_storage.create({ user_id: newUser.user_id, refresh_token: RefreshToken, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) })
     await this.refresh_token_storage.save(data);
     return { AccessToken, RefreshToken };
+  }
 
+  async refresh_token_verify(oldRefreshToken: string, user: any) {
+    const existing_token = await this.refresh_token_storage.findOne({
+      where: {
+        refresh_token: oldRefreshToken,
+        user_id: user.user_id
+      }
+    })
+
+    if (!existing_token) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+
+    // 2. Generate a new JWT access token and a new refresh token.
+    const payload = {
+      sub: user.user_id,
+      email: user.email,
+      role_id: user.role_id,
+    };
+    const newAccessToken = this.jwt_service.sign(payload, {
+      secret: process.env.JWT_ACCESS_SECRET,
+      expiresIn: '15m'
+    })
+    const newRefreshToken = this.jwt_service.sign(payload, {
+      secret: process.env.JWT_REFRESH_SECRET,
+      expiresIn: '7d',
+    })
+    const userID = user.sub;
+
+    if (existing_token.expires_at.getTime() < Date.now()) {
+      await this.refresh_token_storage.update(
+        { user_id: userID }, {
+        refresh_token: newRefreshToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      })
+    }
+
+
+
+    return { access_token: newAccessToken, refresh_token: newRefreshToken }
 
   }
   findAll() {

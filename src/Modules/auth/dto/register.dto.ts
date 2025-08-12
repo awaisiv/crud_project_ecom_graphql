@@ -1,3 +1,6 @@
+import { Type } from "class-transformer";
+import { Column } from "typeorm";
+
 enum gender_choice {
     male = 'male',
     female = 'female',
@@ -9,7 +12,9 @@ export class RegisterDto {
     email: string
     password: string
     role_id: number
+    @Column({ type: 'enum', enum: gender_choice })
     gender: gender_choice
-    date_of_birth: Date
+    @Type(() => Date)
+    date_of_birth: Date;
     phone_number: number
 }
