@@ -5,7 +5,10 @@ import { UpdateAuthDto } from '../dto/update-auth.dto';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { JwtService } from '@nestjs/jwt';
+import { ControllerRoles, Roles } from 'src/common/decorators/Roles.decorator';
+import { Role } from '../entities/roles.entity';
 @Controller('auth')
+@ControllerRoles('2')
 export class AuthController {
   constructor(private readonly authService: AuthService, private readonly jwt_service: JwtService) {
 
@@ -32,6 +35,7 @@ export class AuthController {
   LoginUser(@Body() Logindto: LoginDto) {
     return this.authService.authenticateSignin(Logindto);
   }
+  @Roles('1')
   @Post('register')
   RegisterUsser(@Body() registerdto: RegisterDto) {
     return this.authService.Register(registerdto);

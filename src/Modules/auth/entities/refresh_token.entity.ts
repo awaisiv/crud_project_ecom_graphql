@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, OneToOne } from "typeorm";
-import { Auth_credentials } from "./user_details.entity";
+import { Auth_credentials } from "./auth_credentials.entity";
 
 @Entity({ name: "user_refresh_token" })
 export class RefreshTokenEntity {

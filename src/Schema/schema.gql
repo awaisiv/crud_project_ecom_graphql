@@ -1,0 +1,78 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type User {
+  """Example field (placeholder)"""
+  exampleField: Int!
+}
+
+type Order {
+  id: Int!
+  user_id: Int!
+  total_amount: Float!
+}
+
+type ProductModel {
+  id: Int!
+  name: String!
+  price: Float!
+  stock: Int!
+}
+
+type Query {
+  users: [User!]!
+  user(id: Int!): User!
+  orders: [Order!]!
+  order(id: Int!): Order!
+  products_get_all: [ProductModel!]!
+  product(id: Int!): ProductModel!
+}
+
+type Mutation {
+  createUser(createUserInput: CreateUserInput!): User!
+  updateUser(updateUserInput: UpdateUserInput!): User!
+  removeUser(id: Int!): User!
+  createOrder(createOrderInput: CreateOrderInput!): Order!
+  updateOrder(updateOrderInput: UpdateOrderInput!): Order!
+  removeOrder(id: Int!): Order!
+  createProduct(createProductInput: CreateProductInput!): ProductModel!
+  updateProduct(updateProductInput: UpdateProductInput!): ProductModel!
+  removeProduct(id: Int!): ProductModel!
+}
+
+input CreateUserInput {
+  """Example field (placeholder)"""
+  exampleField: Int!
+}
+
+input UpdateUserInput {
+  """Example field (placeholder)"""
+  exampleField: Int
+  id: Int!
+}
+
+input CreateOrderInput {
+  id: Int!
+  user_id: Int!
+  total_amount: Float!
+}
+
+input UpdateOrderInput {
+  id: Int!
+  user_id: Int
+  total_amount: Float
+}
+
+input CreateProductInput {
+  name: String!
+  price: Float!
+  stock: Int!
+}
+
+input UpdateProductInput {
+  name: String
+  price: Float
+  stock: Int
+  id: Int!
+}
