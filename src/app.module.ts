@@ -14,30 +14,32 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
 import { AuthModule } from './Modules/auth/auth.module';
-import { AuthResolver } from './auth/auth.resolver';
+import { AuthResolver } from './Modules/auth/resolver/auth.resolver';
 
 @Module({
   imports: [
     TypeOrmModule.forRoot(datasource.options)
-    , 
-    // JwtModule.register({
-    //   secret: process.env.JWT_ACCESS_SECRET,
-    //   signOptions: { expiresIn: '15m' },
-    // }),
-      GraphQLModule.forRoot<ApolloDriverConfig>({
+    ,
+    JwtModule.register({
+      secret: process.env.JWT_ACCESS_SECRET,
+      signOptions: { expiresIn: '15m' },
+    }),
+    GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       playground: true,
+      context: ({ req, res }) => ({ req, res }),
       autoSchemaFile: join(process.cwd(), 'src/Schema/schema.gql'),
     }),
-    // PassportModule.register({ defaultStrategy: 'jwt' }),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     UsersModule,
     OrdersModule,
     ProductsModule,
     AuthModule,
+
   ],
 
   controllers: [AppController],
   providers: [AppService, JwtAuthGuard, RoleGuard, AuthResolver],
-  // exports: [JwtModule, PassportModule],
+  exports: [JwtModule, PassportModule],
 })
 export class AppModule { }; 

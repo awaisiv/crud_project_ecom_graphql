@@ -3,9 +3,18 @@
 # ------------------------------------------------------
 
 type User {
-  """Example field (placeholder)"""
-  exampleField: Int!
+  user_id: Float!
+  name: String!
+  gender: String!
+  date_of_birth: DateTime!
+  email: String!
+  phone_number: Float!
 }
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
 
 type Order {
   id: Int!
@@ -20,6 +29,11 @@ type ProductModel {
   stock: Int!
 }
 
+type TokenModel {
+  access_token: String!
+  refresh_token: String!
+}
+
 type Query {
   users: [User!]!
   user(id: Int!): User!
@@ -30,6 +44,8 @@ type Query {
 }
 
 type Mutation {
+  LoginUser(login_credentails: LoginDto!): TokenModel!
+  RegisterUser(registerDto: RegisterDto!): TokenModel!
   createUser(createUserInput: CreateUserInput!): User!
   updateUser(updateUserInput: UpdateUserInput!): User!
   removeUser(id: Int!): User!
@@ -39,6 +55,21 @@ type Mutation {
   createProduct(createProductInput: CreateProductInput!): ProductModel!
   updateProduct(updateProductInput: UpdateProductInput!): ProductModel!
   removeProduct(id: Int!): ProductModel!
+}
+
+input LoginDto {
+  email: String!
+  password: String!
+}
+
+input RegisterDto {
+  name: String!
+  email: String!
+  password: String!
+  role_id: Float!
+  gender: String!
+  date_of_birth: DateTime!
+  phone_number: Float!
 }
 
 input CreateUserInput {

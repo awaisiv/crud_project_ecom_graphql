@@ -10,12 +10,12 @@ import { JwtStrategy } from './strategies/jwt-refresh.strategy';
 import { PassportModule } from '@nestjs/passport';
 import { RolePermission } from './entities/roles-permission.entity';
 @Module({
-  imports: [TypeOrmModule.forFeature([Auth_credentials, RefreshTokenEntity, UserDetails,RolePermission]),
+  imports: [TypeOrmModule.forFeature([Auth_credentials, RefreshTokenEntity, UserDetails, RolePermission]),
     JwtModule, PassportModule
   ],
 
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
-  exports: [JwtStrategy, TypeOrmModule]
+  exports: [AuthService, JwtModule, PassportModule],
 })
 export class AuthModule { }

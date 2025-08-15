@@ -24,31 +24,31 @@ export class AuthService {
   }
 
   async authenticateSignin(loginDTO: LoginDto) {
-        const { email, password } = loginDTO;
-        const user = await this.login_credentials.findOne({ where: { email: email } });
-        if (!user) throw new UnauthorizedException('Invalid credentials');
-        // 2. Directly check password (plaintext)
-        await bcrypt.hash(password, 10);
+    const { email, password } = loginDTO;
+    const user = await this.login_credentials.findOne({ where: { email: email } });
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+    // 2. Directly check password (plaintext)
+    await bcrypt.hash(password, 10);
 
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) throw new UnauthorizedException('Invalid Passsowrd');
-        const payload = {
-          sub: user.user_id, email: user.email, role_id: user.role_id
-        }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) throw new UnauthorizedException('Invalid Passsowrd');
+    const payload = {
+      sub: user.user_id, email: user.email, role_id: user.role_id
+    }
 
-        const AccessToken = this.jwt_service.sign(payload, {
-          secret: process.env.JWT_ACCESS_SECRET,
-          expiresIn: '15m'
-        })
+    const AccessToken = this.jwt_service.sign(payload, {
+      secret: process.env.JWT_ACCESS_SECRET,
+      expiresIn: '15m'
+    })
 
-        const RefreshToken = this.jwt_service.sign(payload, {
-          secret: process.env.JWT_REFRESH_SECRET,
-          expiresIn: '7d'
-        })
+    const RefreshToken = this.jwt_service.sign(payload, {
+      secret: process.env.JWT_REFRESH_SECRET,
+      expiresIn: '7d'
+    })
 
-        await this.refresh_token_storage.update({ user_id: user.user_id }, { refresh_token: RefreshToken, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) })
+    await this.refresh_token_storage.update({ user_id: user.user_id }, { refresh_token: RefreshToken, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) })
 
-        return { AccessToken, RefreshToken };
+    return { AccessToken, RefreshToken };
   }
 
   async Register(Registerdto: RegisterDto) {
@@ -57,6 +57,7 @@ export class AuthService {
     const user = await this.login_credentials.findOne({ where: { email: emaillower } });
     if (user) throw new UnauthorizedException('User Already Exissts please login');
     // 2. Directly check password (plaintext)
+
 
     const hashed_password = await bcrypt.hash(password, 10);
     const newUser = this.login_credentials.create({
@@ -141,22 +142,22 @@ export class AuthService {
     });
 
     if (!user || !user.role_id) return [];
-   
-  const roleIds = user.roles.map(role => role.role_id);
 
-  const rolePermissions = await this.role_permission.find({
-    where: { role: { role_id: In(roleIds) } },
-    relations: ['permission'], // So we can access rp.permission.name
-  });
+    const roleIds = user.roles.map(role => role.role_id);
 
-  const permissions = new Set<string>();
-  rolePermissions.forEach(rp => {
-    if (rp.allowed && rp.permission) {
-      permissions.add(rp.permission.name);
-    }
-  });
+    const rolePermissions = await this.role_permission.find({
+      where: { role: { role_id: In(roleIds) } },
+      relations: ['permission'], // So we can access rp.permission.name
+    });
 
-  return Array.from(permissions);
+    const permissions = new Set<string>();
+    rolePermissions.forEach(rp => {
+      if (rp.allowed && rp.permission) {
+        permissions.add(rp.permission.name);
+      }
+    });
+
+    return Array.from(permissions);
   }
 
   findAll() {

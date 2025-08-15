@@ -19,7 +19,7 @@ export const datasource = new DataSource({
   // Paths should point to the compiled JavaScript files (.js)
   // relative to the 'dist' directory.
   // Assuming 'src/migrations' compiles to 'dist/src/migrations'
-    migrations: [
+  migrations: [
     isTsNode
       ? path.join(srcPath, 'migrations', '*.{ts,js}') // dev: ts
       : path.join(distPath, 'src', 'migrations', '*.js') // prod: js
