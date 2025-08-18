@@ -9,8 +9,8 @@ export class RoleGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     // Get roles from METHOD first, then CONTROLLER
-    const methodRoles = this.reflector.get<string[]>(ROLES_KEY, context.getHandler());
-    const controllerRoles = this.reflector.get<string[]>(CONTROLLER_ROLES_KEY, context.getClass());
+    const methodRoles = this.reflector.get<number[]>(ROLES_KEY, context.getHandler());
+    const controllerRoles = this.reflector.get<number[]>(CONTROLLER_ROLES_KEY, context.getClass());
 
     // Combine roles (method overrides controller)
     const requiredRoles = methodRoles || controllerRoles;

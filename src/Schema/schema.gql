@@ -31,7 +31,6 @@ type ProductModel {
 
 type TokenModel {
   access_token: String!
-  refresh_token: String!
 }
 
 type Query {
@@ -44,8 +43,6 @@ type Query {
 }
 
 type Mutation {
-  LoginUser(login_credentails: LoginDto!): TokenModel!
-  RegisterUser(registerDto: RegisterDto!): TokenModel!
   createUser(createUserInput: CreateUserInput!): User!
   updateUser(updateUserInput: UpdateUserInput!): User!
   removeUser(id: Int!): User!
@@ -55,21 +52,9 @@ type Mutation {
   createProduct(createProductInput: CreateProductInput!): ProductModel!
   updateProduct(updateProductInput: UpdateProductInput!): ProductModel!
   removeProduct(id: Int!): ProductModel!
-}
-
-input LoginDto {
-  email: String!
-  password: String!
-}
-
-input RegisterDto {
-  name: String!
-  email: String!
-  password: String!
-  role_id: Float!
-  gender: String!
-  date_of_birth: DateTime!
-  phone_number: Float!
+  refreshtokens: TokenModel!
+  LoginUser(login_credentails: LoginDto!): TokenModel!
+  RegisterUser(registerDto: RegisterDto!): TokenModel!
 }
 
 input CreateUserInput {
@@ -106,4 +91,19 @@ input UpdateProductInput {
   price: Float
   stock: Int
   id: Int!
+}
+
+input LoginDto {
+  email: String!
+  password: String!
+}
+
+input RegisterDto {
+  name: String!
+  email: String!
+  password: String!
+  role_id: Float!
+  gender: String!
+  date_of_birth: DateTime!
+  phone_number: Int!
 }

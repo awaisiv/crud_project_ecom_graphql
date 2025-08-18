@@ -5,6 +5,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Auth_credentials } from '../entities/auth_credentials.entity';
 import { RefreshTokenEntity } from '../entities/refresh_token.entity';
 import * as bcrypt from "bcrypt"
+import * as crypto from "crypto";
+import { Response } from 'express';
 import { In, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from '../dto/login.dto';
@@ -12,6 +14,7 @@ import { error } from 'console';
 import { RegisterDto } from '../dto/register.dto';
 import { UserDetails } from 'src/Modules/users/entities/user.entity';
 import { RolePermission } from '../entities/roles-permission.entity';
+import { access } from 'fs';
 @Injectable()
 export class AuthService {
   constructor(@InjectRepository(Auth_credentials) private readonly login_credentials: Repository<Auth_credentials>,
@@ -21,6 +24,10 @@ export class AuthService {
     private readonly jwt_service: JwtService) { }
   create(createAuthDto: CreateAuthDto) {
     return 'This action adds a new auth';
+  }
+  // utility: hash refresh token
+  async hashToken(token: string): Promise<string> {
+    return bcrypt.hash(token, 10);
   }
 
   async authenticateSignin(loginDTO: LoginDto) {
@@ -45,10 +52,12 @@ export class AuthService {
       secret: process.env.JWT_REFRESH_SECRET,
       expiresIn: '7d'
     })
+    
+    const HashedRefreshToken = await this.hashToken(RefreshToken)
 
-    await this.refresh_token_storage.update({ user_id: user.user_id }, { refresh_token: RefreshToken, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) })
+    await this.refresh_token_storage.update({ user_id: user.user_id }, { refresh_token: HashedRefreshToken, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) })
 
-    return { AccessToken, RefreshToken };
+    return { access_token:AccessToken,refresh_token:RefreshToken };
   }
 
   async Register(Registerdto: RegisterDto) {
@@ -92,47 +101,66 @@ export class AuthService {
 
     const data = this.refresh_token_storage.create({ user_id: newUser.user_id, refresh_token: RefreshToken, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) })
     await this.refresh_token_storage.save(data);
-    return { AccessToken, RefreshToken };
+    return { access_token: AccessToken,  refresh_token:RefreshToken };
   }
 
-  async refresh_token_verify(oldRefreshToken: string, user: any) {
-    const existing_token = await this.refresh_token_storage.findOne({
-      where: {
-        refresh_token: oldRefreshToken,
-        user_id: user.user_id
-      }
-    })
+  async refresh_token_verify(oldRefreshToken: string,context:{res:Response}) {
 
+    let payload;
+    try {
+      payload = this.jwt_service.verify(oldRefreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET,
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+    
+    const existing_token = await this.refresh_token_storage.findOne({
+      where:{user_id:payload.sub},
+    })
     if (!existing_token) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    const isValid = await bcrypt.compare(oldRefreshToken,existing_token.refresh_token);
 
+
+   if(!isValid) {
+    throw new UnauthorizedException('Invalid refresh token');
+      }
+
+     if (existing_token.expires_at.getTime() < Date.now()) {
+      throw new UnauthorizedException('Refresh Token Expired');
+    }
+    
+  const newPayload = { sub: payload.sub, username: payload.username };
+    
     // 2. Generate a new JWT access token and a new refresh token.
-    const payload = {
-      sub: user.user_id,
-      email: user.email,
-      role_id: user.role_id,
-    };
-    const newAccessToken = this.jwt_service.sign(payload, {
+    const newAccessToken = this.jwt_service.sign(newPayload, {
       secret: process.env.JWT_ACCESS_SECRET,
       expiresIn: '15m'
     })
-    const newRefreshToken = this.jwt_service.sign(payload, {
+    const newRefreshToken = this.jwt_service.sign(newPayload, {
       secret: process.env.JWT_REFRESH_SECRET,
       expiresIn: '7d',
     })
-    const userID = user.sub;
+    const hashedNewRefreshToken = await this.hashToken(newRefreshToken)
 
-    if (existing_token.expires_at.getTime() < Date.now()) {
-      await this.refresh_token_storage.update(
-        { user_id: userID }, {
-        refresh_token: newRefreshToken,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-      })
-    }
+    await this.refresh_token_storage.update(
+      {user_id:payload.sub},
+      {
+        refresh_token:hashedNewRefreshToken,
+        expires_at: new Date(Date.now()+7*24*60*60*1000),
+      }
+    )
+    context.res.cookie('refresh_token',newRefreshToken,{
+      httpOnly:true,
+      secure:process.env.NODE_ENV === 'Production',
+      sameSite:'strict',
+      maxAge:7*24*60*60*1000
+    })
 
-    return { access_token: newAccessToken, refresh_token: newRefreshToken }
+    return { access_token: newAccessToken }
   }
 
   async getUserPermissions(userId: number): Promise<string[]> {
@@ -141,21 +169,21 @@ export class AuthService {
       relations: ['roles'], // Assuming User has ManyToMany with Role
     });
 
-    if (!user || !user.role_id) return [];
+     if (!user || !user.role_id) return [];
 
     const roleIds = user.roles.map(role => role.role_id);
 
-    const rolePermissions = await this.role_permission.find({
-      where: { role: { role_id: In(roleIds) } },
-      relations: ['permission'], // So we can access rp.permission.name
-    });
+      const rolePermissions = await this.role_permission.find({
+        where: { role: { role_id: In(roleIds) } },
+        relations: ['permission'], // So we can access rp.permission.name
+      });
 
     const permissions = new Set<string>();
-    rolePermissions.forEach(rp => {
-      if (rp.allowed && rp.permission) {
-        permissions.add(rp.permission.name);
-      }
-    });
+      rolePermissions.forEach(rp => {
+        if (rp.allowed && rp.permission) {
+          permissions.add(rp.permission.name);
+        }
+      });
 
     return Array.from(permissions);
   }

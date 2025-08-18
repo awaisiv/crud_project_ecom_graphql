@@ -25,6 +25,6 @@ export class UserDetails {
     @Column({ unique: true })
     email: string;
 
-    @Column({ unique: true })
+    @Column({ unique: true ,type:'integer'})
     phone_number: number
 }

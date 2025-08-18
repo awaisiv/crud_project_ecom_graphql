@@ -1,4 +1,4 @@
-import { Field, InputType } from "@nestjs/graphql";
+import { Field, InputType, Int } from "@nestjs/graphql";
 import { Type } from "class-transformer";
 import { Column } from "typeorm";
 
@@ -27,6 +27,6 @@ export class RegisterDto {
     @Field()
     date_of_birth: Date;
 
-    @Field()
+    @Field(()=>Int)
     phone_number: number;
 }
