@@ -1,6 +1,6 @@
 import { Field, InputType, Int } from "@nestjs/graphql";
-import { Type } from "class-transformer";
-import { Column } from "typeorm";
+import { Transform } from "class-transformer";
+import { IsNotEmpty, IsPhoneNumber, IsString } from "class-validator";
 
 enum gender_choice {
     male = 'male',
@@ -18,7 +18,7 @@ export class RegisterDto {
     @Field()
     password: string;
 
-    @Field()
+    @Field(() => Int)
     role_id: number;
 
     @Field()
@@ -27,6 +27,10 @@ export class RegisterDto {
     @Field()
     date_of_birth: Date;
 
-    @Field(()=>Int)
-    phone_number: number;
+    @IsString()
+    @IsNotEmpty()
+    @IsPhoneNumber()
+    @Transform(({ value }) => value.replace(/\D/g, ''))
+    @Field()
+    phone_number: string;
 }

@@ -14,7 +14,6 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
 import { AuthModule } from './Modules/auth/auth.module';
-import { PermissionGuard } from './common/guards/permissionguard/permission.guard';
 @Module({
   imports: [
     TypeOrmModule.forRoot(datasource.options)
@@ -38,7 +37,7 @@ import { PermissionGuard } from './common/guards/permissionguard/permission.guar
   ],
 
   controllers: [AppController],
-  providers: [AppService, JwtAuthGuard, RoleGuard,PermissionGuard],
+  providers: [AppService, JwtAuthGuard, RoleGuard],
   exports: [JwtModule, PassportModule],
 })
 export class AppModule { }; 

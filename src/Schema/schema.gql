@@ -37,6 +37,7 @@ type Query {
   users: [User!]!
   user(id: Int!): User!
   orders: [Order!]!
+  customer_orders: [Order!]!
   order(id: Int!): Order!
   products_get_all: [ProductModel!]!
   product(id: Int!): ProductModel!
@@ -102,8 +103,8 @@ input RegisterDto {
   name: String!
   email: String!
   password: String!
-  role_id: Float!
+  role_id: Int!
   gender: String!
   date_of_birth: DateTime!
-  phone_number: Int!
+  phone_number: String!
 }

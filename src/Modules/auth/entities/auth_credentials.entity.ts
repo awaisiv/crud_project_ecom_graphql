@@ -1,7 +1,7 @@
-import { PrimaryColumn, Column, Entity, PrimaryGeneratedColumn, ManyToMany, JoinTable } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 import { Role } from "./roles.entity";
 
-@Entity({ name: 'User_Credentials' })
+@Entity({ name: 'user_credentials' })
 
 export class Auth_credentials {
     @PrimaryGeneratedColumn()
@@ -13,13 +13,7 @@ export class Auth_credentials {
     @Column()
     password: string
 
-    @Column()
+    @ManyToOne(() => Role, (role) => role.role_id, { eager: true })
+    @JoinColumn({ name: 'role_id' })
     role_id: number
-    @ManyToMany(() => Role, role => role.role_id)
-    @JoinTable({
-    name: 'user_roles',
-    joinColumn: { name: 'user_id', referencedColumnName: 'user_id' },
-    inverseJoinColumn: { name: 'role_id', referencedColumnName: 'role_id' },
-    })
-    roles: Role[];
 }

@@ -1,17 +1,18 @@
-import { PrimaryColumn, Column, Entity, PrimaryGeneratedColumn, OneToOne } from "typeorm";
+import { Column, Entity, PrimaryGeneratedColumn, OneToOne, JoinColumn } from "typeorm";
 import { Auth_credentials } from "src/Modules/auth/entities/auth_credentials.entity";
 enum gender_choice {
     male = 'male',
     female = 'female',
     other = 'other',
 }
-@Entity({ name: 'User_details' })
+@Entity({ name: 'user_details' })
 export class UserDetails {
     @PrimaryGeneratedColumn()
     customer_id: number;
 
-    @OneToOne(() => Auth_credentials, (data) => data.user_id)
-    user_id: number;
+    @OneToOne(() => Auth_credentials, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: "user_id" }) // FK column in this table
+    user: Auth_credentials;
 
     @Column()
     name: string;
@@ -25,6 +26,6 @@ export class UserDetails {
     @Column({ unique: true })
     email: string;
 
-    @Column({ unique: true ,type:'integer'})
-    phone_number: number
+    @Column({ unique: true })
+    phone_number: string
 }

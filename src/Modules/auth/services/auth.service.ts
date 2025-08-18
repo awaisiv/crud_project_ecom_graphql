@@ -7,7 +7,7 @@ import { RefreshTokenEntity } from '../entities/refresh_token.entity';
 import * as bcrypt from "bcrypt"
 import * as crypto from "crypto";
 import { Response } from 'express';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from '../dto/login.dto';
 import { error } from 'console';
@@ -21,7 +21,7 @@ export class AuthService {
     @InjectRepository(RefreshTokenEntity) private readonly refresh_token_storage: Repository<RefreshTokenEntity>,
     @InjectRepository(RolePermission) private readonly role_permission: Repository<RolePermission>,
     @InjectRepository(UserDetails) private readonly userdetails: Repository<UserDetails>,
-    private readonly jwt_service: JwtService) { }
+    private readonly jwt_service: JwtService, private readonly datasource: DataSource) { }
   create(createAuthDto: CreateAuthDto) {
     return 'This action adds a new auth';
   }
@@ -52,59 +52,75 @@ export class AuthService {
       secret: process.env.JWT_REFRESH_SECRET,
       expiresIn: '7d'
     })
-    
+
     const HashedRefreshToken = await this.hashToken(RefreshToken)
 
     await this.refresh_token_storage.update({ user_id: user.user_id }, { refresh_token: HashedRefreshToken, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) })
 
-    return { access_token:AccessToken,refresh_token:RefreshToken };
+    return { access_token: AccessToken, refresh_token: RefreshToken };
   }
 
   async Register(Registerdto: RegisterDto) {
-    const { email, password, ...otherDetails } = Registerdto;
-    const emaillower = email.toLocaleLowerCase()
-    const user = await this.login_credentials.findOne({ where: { email: emaillower } });
-    if (user) throw new UnauthorizedException('User Already Exissts please login');
-    // 2. Directly check password (plaintext)
+    const result = await this.datasource.transaction(async (manager) => {
+      const loginRepo = manager.getRepository(Auth_credentials);
+      const userDetailsRepo = manager.getRepository(UserDetails);
+      const refreshRepo = manager.getRepository(RefreshTokenEntity);
+      const { email, password, ...otherDetails } = Registerdto;
+      const emaillower = email.toLocaleLowerCase();
 
 
-    const hashed_password = await bcrypt.hash(password, 10);
-    const newUser = this.login_credentials.create({
-      email: emaillower,
-      password: hashed_password,
-      role_id: otherDetails.role_id
-    });
-    await this.login_credentials.save(newUser);
-    const userDetails = this.userdetails.create({
-      user_id: newUser.user_id,
-      name: otherDetails.name,
-      gender: otherDetails.gender,            // This should be one of gender_choice enum values like 'MALE'
-      date_of_birth: otherDetails.date_of_birth,  // Date type or ISO string
-      email: emaillower,
-      phone_number: otherDetails.phone_number,
-    });
+      const user = await loginRepo.findOne({ where: { email: emaillower } });
+      if (user) throw new UnauthorizedException('User Already Exists please register with another email');
+      // 2. Directly check password (plaintext)
 
-    await this.userdetails.save(userDetails)
-    const payload = {
-      sub: newUser.user_id, email: emaillower, role_id: newUser.role_id
-    }
+      const hashed_password = await bcrypt.hash(password, 10);
 
-    const AccessToken = this.jwt_service.sign(payload, {
-      secret: process.env.JWT_ACCESS_SECRET,
-      expiresIn: '15m'
+      const newUser = loginRepo.create({
+        email: emaillower,
+        password: hashed_password,
+        role_id: otherDetails.role_id
+      });
+
+      const login_creds = loginRepo.create(newUser);
+
+      await manager.save(login_creds);
+
+      const userDetails = userDetailsRepo.create({
+        user: login_creds,
+        name: otherDetails.name,
+        gender: otherDetails.gender,            // This should be one of gender_choice enum values like 'MALE'
+        date_of_birth: otherDetails.date_of_birth,  // Date type or ISO string
+        email: emaillower,
+        phone_number: otherDetails.phone_number,
+      });
+
+      const UserDets = userDetailsRepo.create(userDetails)
+
+      await manager.save(UserDets);
+
+      const payload = {
+        sub: newUser.user_id, email: emaillower, role_id: newUser.role_id
+      }
+
+      const AccessToken = this.jwt_service.sign(payload, {
+        secret: process.env.JWT_ACCESS_SECRET,
+        expiresIn: '15m'
+      })
+
+      const RefreshToken = this.jwt_service.sign(payload, {
+        secret: process.env.JWT_REFRESH_SECRET,
+        expiresIn: '7d'
+      })
+
+      const data = refreshRepo.create({ user_id: login_creds.user_id, refresh_token: RefreshToken, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) })
+      await manager.save(data);
+
+      return { access_token: AccessToken, refresh_token: RefreshToken };
     })
-
-    const RefreshToken = this.jwt_service.sign(payload, {
-      secret: process.env.JWT_REFRESH_SECRET,
-      expiresIn: '7d'
-    })
-
-    const data = this.refresh_token_storage.create({ user_id: newUser.user_id, refresh_token: RefreshToken, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) })
-    await this.refresh_token_storage.save(data);
-    return { access_token: AccessToken,  refresh_token:RefreshToken };
+    return result;
   }
 
-  async refresh_token_verify(oldRefreshToken: string,context:{res:Response}) {
+  async refresh_token_verify(oldRefreshToken: string, context: { res: Response }) {
 
     let payload;
     try {
@@ -114,27 +130,27 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
-    
+
     const existing_token = await this.refresh_token_storage.findOne({
-      where:{user_id:payload.sub},
+      where: { user_id: payload.sub },
     })
     if (!existing_token) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const isValid = await bcrypt.compare(oldRefreshToken,existing_token.refresh_token);
+    const isValid = await bcrypt.compare(oldRefreshToken, existing_token.refresh_token);
 
 
-   if(!isValid) {
-    throw new UnauthorizedException('Invalid refresh token');
-      }
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
 
-     if (existing_token.expires_at.getTime() < Date.now()) {
+    if (existing_token.expires_at.getTime() < Date.now()) {
       throw new UnauthorizedException('Refresh Token Expired');
     }
-    
-  const newPayload = { sub: payload.sub, username: payload.username };
-    
+
+    const newPayload = { sub: payload.sub, username: payload.username };
+
     // 2. Generate a new JWT access token and a new refresh token.
     const newAccessToken = this.jwt_service.sign(newPayload, {
       secret: process.env.JWT_ACCESS_SECRET,
@@ -147,17 +163,17 @@ export class AuthService {
     const hashedNewRefreshToken = await this.hashToken(newRefreshToken)
 
     await this.refresh_token_storage.update(
-      {user_id:payload.sub},
+      { user_id: payload.sub },
       {
-        refresh_token:hashedNewRefreshToken,
-        expires_at: new Date(Date.now()+7*24*60*60*1000),
+        refresh_token: hashedNewRefreshToken,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       }
     )
-    context.res.cookie('refresh_token',newRefreshToken,{
-      httpOnly:true,
-      secure:process.env.NODE_ENV === 'Production',
-      sameSite:'strict',
-      maxAge:7*24*60*60*1000
+    context.res.cookie('refresh_token', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'Production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000
     })
 
     return { access_token: newAccessToken }
@@ -169,21 +185,21 @@ export class AuthService {
       relations: ['roles'], // Assuming User has ManyToMany with Role
     });
 
-     if (!user || !user.role_id) return [];
+    if (!user || !user.role_id) return [];
 
-    const roleIds = user.roles.map(role => role.role_id);
+    const roleIds = user.role_id;
 
-      const rolePermissions = await this.role_permission.find({
-        where: { role: { role_id: In(roleIds) } },
-        relations: ['permission'], // So we can access rp.permission.name
-      });
+    const rolePermissions = await this.role_permission.find({
+      where: { role: { role_id: roleIds } },
+      relations: ['permission'], // So we can access rp.permission.name
+    });
 
     const permissions = new Set<string>();
-      rolePermissions.forEach(rp => {
-        if (rp.allowed && rp.permission) {
-          permissions.add(rp.permission.name);
-        }
-      });
+    rolePermissions.forEach(rp => {
+      if (rp.allowed && rp.permission) {
+        permissions.add(rp.permission.name);
+      }
+    });
 
     return Array.from(permissions);
   }
